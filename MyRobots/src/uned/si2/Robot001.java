@@ -4,8 +4,11 @@
 package uned.si2;
 
 import robocode.*;
+
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.math.BigDecimal;
+import static robocode.util.Utils.normalRelativeAngleDegrees;
 
 // API help : http://robocode.sourceforge.net/docs/robocode/robocode/Robot.html
 
@@ -14,6 +17,8 @@ import java.awt.Graphics2D;
  */
 public class Robot001 extends AdvancedRobot
 {
+	int distMoveOnHit = 50;	//Distancia a la que moverse cuando nos disparan
+
 	/**
 	 * run: Robot001's default behavior
 	 */
@@ -51,21 +56,16 @@ public class Robot001 extends AdvancedRobot
 			turnLeft (getHeading () % 90);
 			}
 					
-		ahead (moveAmount);
-		turnRight(90);
+		//ahead (moveAmount);
+		//turnRight(90);
 
 		System.out.println("Fin inicialización");
 		while(true) {
 			// Replace the next 4 lines with any behavior you would like
-/*			System.out.println("Inicio adelante 100 y giro cañón 360");
-			ahead(100);
-			turnGunRight(360);
-			System.out.println("Inicio atrás 100 y giro cañón 360");
-			back(100);
-			turnGunRight(360);
-*/			
-			ahead(moveAmount);
+
+//			ahead(moveAmount);
 //			turnRight(90);
+			turnGunRight(5);
 			
 		}
 	}
@@ -86,20 +86,22 @@ public class Robot001 extends AdvancedRobot
 		scannedX = (int) (getX() + Math.sin(angle) * e.getDistance());
 		scannedY = (int) (getY() + Math.cos(angle) * e.getDistance());
 
+		setDebugProperty("lastScannedRobot", "[" + getTime() + "]" 
+				+ e.getName() + " at " + roundTwoDec(e.getBearing()) + " degrees\n" 
+				+ ", distance=" + roundTwoDec(e.getDistance())
+				+ ", energy=" + roundTwoDec(e.getEnergy()));		
 
-/*		System.out.println("*******************************************");
-		System.out.println("Tiempo: " + getTime());
-		System.out.println("Robot detectado: " + e.getName() + " - Posición: ángulo=" + e.getBearing() + 
-					" ,distancia: " + e.getDistance()); 
-		System.out.println("Movimiento: dirección=" + e.getHeading() + " ,velocidad=" + e.getVelocity());
-		System.out.println("Energía: " + e.getEnergy());
-		System.out.println("*******************************************");
+//		fire(1);
+	//[sample.Fire] Si el otro robot está cerca y tenemos mucha vida
+	//disparamos con todo
+	if(e.getDistance() < 50 && getEnergy() > 50){
+		fire(3);
+	}	//Si no, disparamos fuerza 1
+	else{
 		fire(1);
-*/		
-
-
-		
-		
+	}
+	//Llamamos de nuevo a Scan, antes de girar la torreta
+	scan();
 	}
 
 	/**
@@ -107,26 +109,33 @@ public class Robot001 extends AdvancedRobot
 	 */
 	public void onHitByBullet(HitByBulletEvent e) {
 		// Replace the next line with any behavior you would like
-		//back(10);
-		System.out.print("Nos atacan!!!" );
-		System.out.println ("Fue el robot: " + e.getName());
-		System.out.println("Bullet: f=" + e.getPower() + ",v="+ e.getVelocity());
-		System.out.println("Bullet Bearing=" + e.getBearing() + 
-			",BearingRads=" + e.getBearingRadians());
-		if (e.getBearing() == 0){
-			//El robot está enfrente de nosotros!!!
-			//Disparamos con todo
-			fire(3);
-			System.out.println("Fire 3!!!!");
-		}
-		if (e.getBearing() == 180)
-		{ //El robot está detras de nosotros!!!
-			// Giramos y disparamos con todo
-			turnRight(180);
-			fire(3);
-			}
-			
-//		turnLeft(180);
+		setDebugProperty("lastHitBy:", "[" + getTime() + "]:" + e.getName() 
+				+ "with power of bullet " + e.getPower() 
+				+ "\n velocity" + e.getVelocity() 
+				+ " at " + e.getBearing() + " degrees");
+		debugPaintHitBullet();
+//		if (e.getBearing() == 0){
+//			//El robot está enfrente de nosotros!!!
+//			//Disparamos con todo
+//			fire(1);
+//			System.out.println("Fire 1!!!!");
+//		}
+//		if (e.getBearing() == 180)
+//		{ //El robot está detras de nosotros!!!
+//			// Giramos y disparamos con todo
+//			turnRight(180);
+//			fire(3);
+//		}
+		
+		//[sample.Fire] Giramos perpendicularmente a la bala y 
+		//nos movemos un poco
+//		turnRight(normalRelativeAngleDegrees(90 - (getHeading() - e.getHeading())));
+		turnRight(90 - (getHeading() - e.getHeading()));
+	
+		ahead(distMoveOnHit);
+		distMoveOnHit *= -1;
+		scan();		
+
 	}
 	
 	/**
@@ -163,6 +172,34 @@ public class Robot001 extends AdvancedRobot
 //		g.SetColor(new Color(0xff, 0xff, 0x80));
 		//Dibujamos una línea desde nuestro robot, mostrando la posición del escaner
 //		g.drawLine(, (int)getX(), (int)getY());
+
+
+		//Dibujamos un arco que muestre donde está el frontal del robot
+		g.setColor(new Color(0xff, 0x00, 0x00, 0x80));
+		g.fillArc((int)getX()-50, (int)getY()-50, 100, 100, (int)getHeading()+30 , -60);
+		
+
 	}	
+
+public double roundTwoDec(double d) {
+	BigDecimal bigDec = new BigDecimal(d);
+	bigDec.setScale(2, BigDecimal.ROUND_UP);
+	return bigDec.doubleValue();
+}
+
+public void debugPaintHitBullet(){
+	Graphics2D g = getGraphics();
+	
+	g.setColor(Color.orange);
+	g.drawOval((int) (getX() - 55), (int)(getY() - 55), 110, 110);
+//	g.drawOval((int) (getX() - 56), (int)(getY() - 56), 112, 112);
+//	g.drawOval((int) (getX() - 59), (int)(getY() - 59), 118, 118);
+//	g.drawOval((int) (getX() - 60), (int)(getY() - 60), 120, 120);			
+}
+
+
+
+
+
 
 }
